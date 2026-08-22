@@ -12,31 +12,26 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { MessagePriority, EmergencyMessage } from '@mobiletrust/shared';
 import { PrioritySelector } from '../components/PrioritySelector';
-import { SmsDispatcher } from '../native/SmsDispatcher';
+import { generateTrackingId } from '../crypto/hash';
 import { useMessages } from '../context/MessageContext';
 
-const MAX_CHARS = 160;
+// PRD Single GSM-7 SMS budget: 160 total - 25 for [TRK:MTR-XXXXXX-XXXX] footer = 135 chars
+const MAX_CHARS = 135;
 
 export const DispatchScreen = () => {
   const navigation = useNavigation();
-  const { addMessage } = useMessages();
+  const { addMessage, isOffline } = useMessages();
   
   const [recipient, setRecipient] = useState('');
   const [content, setContent] = useState('');
   const [priority, setPriority] = useState<MessagePriority>('STANDARD');
   const [isSending, setIsSending] = useState(false);
 
-  const generateTrackingId = () => {
-    const timestamp = Date.now().toString().slice(-6);
-    const hash = Math.random().toString(16).slice(2, 6).toUpperCase();
-    return `MTR-${timestamp}-${hash}`;
-  };
-
   const handleSend = async () => {
     // Validation
     const phoneRegex = /^\+91[0-9]{10}$/;
     if (!phoneRegex.test(recipient.trim())) {
-      Alert.alert('Invalid Format', 'Please enter a valid Indian mobile number starting with +91');
+      Alert.alert('Invalid Format', 'Please enter a valid Indian mobile number starting with +91 (e.g. +919876543210)');
       return;
     }
     if (!content.trim()) {
@@ -46,33 +41,29 @@ export const DispatchScreen = () => {
 
     setIsSending(true);
 
+    const trackingId = generateTrackingId();
+    const nowIso = new Date().toISOString();
+
     const message: EmergencyMessage = {
-      id: generateTrackingId(),
-      recipient,
-      content,
-      status: 'QUEUED_OFFLINE',
+      id: trackingId,
+      recipient: recipient.trim(),
+      payload: content.trim(),
+      status: isOffline ? 'QUEUED_OFFLINE' : 'SENT',
       priority,
+      isEncrypted: false,
       retryCount: 0,
-      timestampCreated: Date.now(),
+      maxRetries: 3,
+      createdAt: nowIso,
+      updatedAt: nowIso,
     };
 
     try {
-      // 1. Dispatch native SMS
-      const dispatched = await SmsDispatcher.dispatch(message);
-      
-      // 2. Add to local store / cloud queue
-      if (dispatched) {
-        message.status = 'SENT_RADIO';
-        message.timestampSent = Date.now();
-      }
-      
       const proceed = await addMessage(message);
-      
       if (proceed) {
         navigation.goBack();
       }
     } catch (e) {
-      Alert.alert('Dispatch Error', 'Failed to interact with native SMS module.');
+      Alert.alert('Dispatch Error', 'Failed to dispatch emergency alert.');
     } finally {
       setIsSending(false);
     }

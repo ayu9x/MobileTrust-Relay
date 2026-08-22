@@ -48,9 +48,24 @@ export const handleBatchStatusQuery = async (req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
   };
 
+  // Also construct normalized carrier receipt statuses map for Mobile RelayClient
+  const statuses: Record<string, any> = {};
+  for (const [id, rec] of Object.entries(records)) {
+    statuses[id] = {
+      trackingId: rec.trackingId,
+      recipient: rec.recipient,
+      carrierStatus: rec.rawCarrierStatus || (rec.status === 'DELIVERED' ? 'DELIVRD' : rec.status === 'FAILED' ? 'UNDELIV' : 'ACCEPTD'),
+      carrierTimestamp: rec.deliveredAt || rec.updatedAt || new Date().toISOString(),
+      carrierName: rec.carrierName,
+      networkErrorCode: rec.failureReason,
+    };
+  }
+
   return res.status(200).json({
     success: true,
     count: Object.keys(records).length,
+    statuses,
+    records,
     data: response,
   });
 };

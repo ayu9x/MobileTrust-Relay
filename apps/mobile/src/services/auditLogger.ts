@@ -1,5 +1,5 @@
 import { AuditEvent, AuditEventType, STORAGE_KEYS } from '@mobiletrust/shared';
-import { getStorage } from './asyncStorage.js';
+import { getStorage } from './asyncStorage';
 
 /**
  * Sanitizes metadata to ensure no sensitive plaintext payloads or encryption keys are logged.

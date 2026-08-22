@@ -11,7 +11,7 @@ export const DeliveryStatusBadge: React.FC<Props> = ({ status, retryCount = 0 })
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    if (status === 'QUEUED_OFFLINE' || status === 'FAILED_CARRIER') {
+    if (status === 'QUEUED_OFFLINE' || status === 'FAILED' || status === 'FAILED_CARRIER') {
       Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
@@ -37,12 +37,14 @@ export const DeliveryStatusBadge: React.FC<Props> = ({ status, retryCount = 0 })
     switch (status) {
       case 'DELIVERED':
         return { text: 'DELIVERED', bg: '#10B981', color: '#FFFFFF', icon: '✓', shadow: '#059669' };
+      case 'SENT':
       case 'SENT_RADIO':
         return { text: 'SENT (CARRIER)', bg: '#3B82F6', color: '#FFFFFF', icon: '→', shadow: '#2563EB' };
       case 'RELAYED_CLOUD':
         return { text: 'RELAYED (CLOUD)', bg: '#8B5CF6', color: '#FFFFFF', icon: '☁', shadow: '#7C3AED' };
       case 'QUEUED_OFFLINE':
         return { text: 'OFFLINE QUEUED', bg: '#F59E0B', color: '#000000', icon: '⏳', shadow: '#D97706' };
+      case 'FAILED':
       case 'FAILED_CARRIER':
         return { 
           text: `FAILED (${retryCount}/3)`, 

@@ -39,7 +39,14 @@ export const MessageDetailModal = () => {
           <Text style={styles.value}>{message.recipient}</Text>
           
           <Text style={styles.label}>Payload</Text>
-          <Text style={styles.value}>{message.content}</Text>
+          <Text style={styles.value}>{message.content || message.payload}</Text>
+          
+          {message.failureReason && (
+            <>
+              <Text style={styles.label}>Failure Diagnostics</Text>
+              <Text style={styles.errorText}>{message.failureReason}</Text>
+            </>
+          )}
         </View>
 
         <Text style={styles.sectionTitle}>Timeline</Text>
@@ -48,37 +55,48 @@ export const MessageDetailModal = () => {
           {/* Step 1: Created */}
           <View style={styles.timelineStep}>
             <View style={[styles.node, styles.nodeActive]} />
-            <View style={[styles.line, message.timestampSent ? styles.lineActive : null]} />
+            <View style={[styles.line, (message.timestampSent || message.status !== 'QUEUED_OFFLINE') ? styles.lineActive : null]} />
             <View style={styles.stepContent}>
               <Text style={styles.stepTitle}>Message Created</Text>
-              <Text style={styles.stepTime}>{new Date(message.timestampCreated || message.createdAt || Date.now()).toLocaleString()}</Text>
+              <Text style={styles.stepTime}>{new Date(message.timestampCreated || (message.createdAt ? new Date(message.createdAt).getTime() : Date.now())).toLocaleString()}</Text>
             </View>
           </View>
 
           {/* Step 2: Dispatched */}
           <View style={styles.timelineStep}>
-            <View style={[styles.node, message.timestampSent ? styles.nodeActive : null]} />
-            <View style={[styles.line, message.timestampDelivered ? styles.lineActive : null]} />
+            <View style={[styles.node, (message.timestampSent || message.status !== 'QUEUED_OFFLINE') ? styles.nodeActive : null]} />
+            <View style={[styles.line, (message.timestampDelivered || message.status === 'DELIVERED' || message.status === 'FAILED' || message.status === 'FAILED_CARRIER') ? styles.lineActive : null]} />
             <View style={styles.stepContent}>
-              <Text style={[styles.stepTitle, !message.timestampSent && styles.stepPending]}>Dispatched to Carrier (Radio)</Text>
-              {message.timestampSent && (
+              <Text style={[styles.stepTitle, (message.status === 'QUEUED_OFFLINE' && !message.timestampSent) && styles.stepPending]}>
+                {message.status === 'QUEUED_OFFLINE' ? 'Queued (Offline Cell Buffer)' : 'Dispatched to Carrier (Radio)'}
+              </Text>
+              {message.timestampSent ? (
                 <Text style={styles.stepTime}>{new Date(message.timestampSent).toLocaleString()}</Text>
-              )}
+              ) : null}
             </View>
           </View>
 
           {/* Step 3: Delivered (Cloud/Carrier DLR) */}
           <View style={styles.timelineStep}>
-            <View style={[styles.node, message.status === 'DELIVERED' ? styles.nodeSuccess : message.status === 'FAILED_CARRIER' ? styles.nodeError : null]} />
+            <View style={[
+              styles.node, 
+              message.status === 'DELIVERED' ? styles.nodeSuccess : 
+              (message.status === 'FAILED' || message.status === 'FAILED_CARRIER') ? styles.nodeError : null
+            ]} />
             <View style={styles.stepContent}>
-              <Text style={[styles.stepTitle, !message.timestampDelivered && message.status !== 'FAILED_CARRIER' && styles.stepPending]}>
-                {message.status === 'FAILED_CARRIER' ? 'Delivery Failed' : 'Confirmed Delivered'}
+              <Text style={[
+                styles.stepTitle, 
+                (!message.timestampDelivered && message.status !== 'DELIVERED' && message.status !== 'FAILED' && message.status !== 'FAILED_CARRIER') && styles.stepPending
+              ]}>
+                {message.status === 'FAILED' || message.status === 'FAILED_CARRIER' ? 'Delivery Failed' : message.status === 'DELIVERED' ? 'Confirmed Delivered' : 'Awaiting Carrier Receipt'}
               </Text>
-              {message.timestampDelivered && (
-                <Text style={styles.stepTime}>{new Date(message.timestampDelivered).toLocaleString()}</Text>
-              )}
-              {message.status === 'FAILED_CARRIER' && (
-                <Text style={styles.stepError}>Failed after {message.retryCount} retries</Text>
+              {message.deliveredAt || message.timestampDelivered ? (
+                <Text style={styles.stepTime}>{new Date(message.deliveredAt || message.timestampDelivered || Date.now()).toLocaleString()}</Text>
+              ) : null}
+              {(message.status === 'FAILED' || message.status === 'FAILED_CARRIER') && (
+                <Text style={styles.stepError}>
+                  {message.failureReason || `Failed after ${message.retryCount} retries`}
+                </Text>
               )}
             </View>
           </View>
@@ -116,4 +134,5 @@ const styles = StyleSheet.create({
   stepPending: { color: '#64748B' },
   stepTime: { color: '#94A3B8', fontSize: 13, marginTop: 4 },
   stepError: { color: '#EF4444', fontSize: 13, marginTop: 4 },
+  errorText: { color: '#EF4444', fontSize: 14, marginTop: 4, fontWeight: '500' },
 });

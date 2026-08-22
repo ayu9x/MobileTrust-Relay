@@ -1,1 +1,1 @@
-export * from './messageStore.js';
+export * from './messageStore';

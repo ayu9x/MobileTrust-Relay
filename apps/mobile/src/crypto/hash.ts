@@ -22,12 +22,10 @@ export function generateTrackingId(timestamp: number = Date.now()): string {
   // Extract 6-digit timestamp part (modulo 1000000 ensures exactly 6 digits)
   const timePart = (Math.floor(timestamp) % 1000000).toString().padStart(6, '0');
 
-  // Generate 2 random bytes for 4-char uppercase hex hash
-  const randomBytes = new Uint8Array(2);
-  globalThis.crypto.getRandomValues(randomBytes);
-  const hashPart = Array.from(randomBytes)
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
+  // Generate 4-char uppercase hex hash using Math.random() (Hermes-compatible)
+  const hashPart = Math.floor(Math.random() * 0xffff)
+    .toString(16)
+    .padStart(4, '0')
     .toUpperCase();
 
   return `${TRACKING_ID_PREFIX}${timePart}-${hashPart}`;
@@ -58,6 +56,15 @@ export function get5MinuteBucket(timestamp: number = Date.now()): number {
  * @param timestamp Optional timestamp (defaults to Date.now())
  * @returns 64-character hex SHA-256 digest
  */
+/**
+ * Generates a SHA-256 content deduplication hash matching Person 2's backend algorithm:
+ * SHA256(recipient + normalizedMessageBody + 5-minute time bucket)
+ *
+ * @param recipient E.164 phone number
+ * @param messageBody Raw message text
+ * @param timestamp Optional timestamp (defaults to Date.now())
+ * @returns 64-character hex SHA-256 digest
+ */
 export async function generateContentHash(
   recipient: string,
   messageBody: string,
@@ -70,6 +77,20 @@ export async function generateContentHash(
   const encoder = new TextEncoder();
   const hashBuffer = await globalThis.crypto.subtle.digest('SHA-256', encoder.encode(data));
   return bufferToHex(hashBuffer);
+}
+
+/**
+ * Fast synchronous fingerprint helper for duplicate checking in memory.
+ */
+export function generateFingerprint(
+  recipient: string,
+  messageBody: string,
+  timestamp: number = Date.now()
+): string {
+  const normalized = normalizeMessage(messageBody);
+  const bucket = get5MinuteBucket(timestamp);
+  const normalizedRecipient = recipient.replace(/[^\d+]/g, '');
+  return `${normalizedRecipient}:${normalized}:${bucket}`;
 }
 
 /**

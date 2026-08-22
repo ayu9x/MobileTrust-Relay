@@ -4,8 +4,8 @@ import {
   StorageStats,
   STORAGE_KEYS,
 } from '@mobiletrust/shared';
-import { getStorage } from '../services/asyncStorage.js';
-import { enforceStorageBudget, getStorageStats } from '../services/storageBudget.js';
+import { getStorage } from '../services/asyncStorage';
+import { enforceStorageBudget, getStorageStats } from '../services/storageBudget';
 
 export type StoreListener = () => void;
 

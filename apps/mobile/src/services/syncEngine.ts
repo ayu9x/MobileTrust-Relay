@@ -10,11 +10,11 @@ import {
   SyncError,
   SyncResult,
 } from '@mobiletrust/shared';
-import { generateTrackingId } from '../crypto/hash.js';
-import { MessageStore, messageStore } from '../store/messageStore.js';
-import { AuditLogger, auditLogger } from './auditLogger.js';
-import { NetworkMonitor, networkMonitor } from './networkMonitor.js';
-import { RelayClient, relayClient } from './relayClient.js';
+import { generateTrackingId } from '../crypto/hash';
+import { MessageStore, messageStore } from '../store/messageStore';
+import { AuditLogger, auditLogger } from './auditLogger';
+import { NetworkMonitor, networkMonitor } from './networkMonitor';
+import { RelayClient, relayClient } from './relayClient';
 
 export interface CreateMessageOptions {
   recipient: string;

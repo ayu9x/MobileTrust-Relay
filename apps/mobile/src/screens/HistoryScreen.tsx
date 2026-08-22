@@ -21,29 +21,28 @@ type FilterType = 'ALL' | 'DELIVERED' | 'FAILED';
 
 export const HistoryScreen = () => {
   const navigation = useNavigation<HistoryScreenProp>();
-  const { messages } = useMessages();
+  const { messages, isOffline, storageStats, resendMessage, syncNow } = useMessages();
   const [filter, setFilter] = useState<FilterType>('ALL');
 
-  // Dummy logic for MVP network status
-  const isOffline = false;
-
-  // Storage estimation: naive JS string length for size mapping
-  const storageBytes = useMemo(() => {
-    const payload = JSON.stringify(messages);
-    try {
-      return new TextEncoder().encode(payload).length;
-    } catch {
-      return payload.length;
-    }
-  }, [messages]);
-  
+  const storageBytes = storageStats?.totalBytes || 0;
+  const storageLimitBytes = storageStats?.limitBytes || 15 * 1024 * 1024;
   const storageMB = (storageBytes / (1024 * 1024)).toFixed(3);
 
   const filteredMessages = useMemo(() => {
-    if (filter === 'DELIVERED') return messages.filter(m => m.status === 'DELIVERED');
-    if (filter === 'FAILED') return messages.filter(m => m.status === 'FAILED_CARRIER');
+    if (filter === 'DELIVERED') {
+      return messages.filter(m => m.status === 'DELIVERED');
+    }
+    if (filter === 'FAILED') {
+      return messages.filter(m => m.status === 'FAILED' || m.status === 'FAILED_CARRIER');
+    }
     return messages;
   }, [messages, filter]);
+
+  const failedRetryMessage = useMemo(() => {
+    return messages.find(
+      m => (m.status === 'FAILED' || m.status === 'FAILED_CARRIER') && m.retryCount >= 3
+    );
+  }, [messages]);
 
   const renderItem = ({ item }: { item: EmergencyMessage }) => {
     return (
@@ -55,9 +54,11 @@ export const HistoryScreen = () => {
           <Text style={styles.recipient}>{item.recipient}</Text>
           <DeliveryStatusBadge status={item.status} retryCount={item.retryCount} />
         </View>
-        <Text style={styles.content} numberOfLines={2}>{item.content}</Text>
+        <Text style={styles.content} numberOfLines={2}>{item.content || item.payload}</Text>
         <View style={styles.cardFooter}>
-          <Text style={styles.timestamp}>{new Date(item.timestampCreated || item.createdAt || Date.now()).toLocaleTimeString()}</Text>
+          <Text style={styles.timestamp}>
+            {new Date(item.timestampCreated || (item.createdAt ? new Date(item.createdAt).getTime() : Date.now())).toLocaleTimeString()}
+          </Text>
           {item.priority === 'HIGH_URGENT' && <Text style={styles.urgentTag}>🔴 URGENT</Text>}
         </View>
       </TouchableOpacity>
@@ -68,23 +69,29 @@ export const HistoryScreen = () => {
     <SafeAreaView style={styles.container}>
       <NetworkIndicator isOffline={isOffline} />
       
-      {/* Storage Tracker */}
+      {/* Storage Budget Tracker (< 15MB Guaranteed) */}
       <View style={styles.storageHeader}>
         <View style={styles.storageBarBg}>
-          <View style={[styles.storageBarFill, { width: `${Math.min((storageBytes / 15000000) * 100, 100)}%` }]} />
+          <View 
+            style={[
+              styles.storageBarFill, 
+              { width: `${Math.min((storageBytes / storageLimitBytes) * 100, 100)}%` },
+              storageStats?.isOverThreshold ? { backgroundColor: '#F59E0B' } : null
+            ]} 
+          />
         </View>
         <Text style={styles.storageText}>
-          Local Cache: {storageMB} MB / 15 MB Budget
+          Local Cache: {storageMB} MB / 15 MB Budget {storageStats?.isOverThreshold ? '(Auto-Pruning)' : ''}
         </Text>
       </View>
 
       {/* 3-Retry Failure Global Banner Check */}
-      {messages.some(m => m.status === 'FAILED_CARRIER' && m.retryCount >= 3) && (
+      {failedRetryMessage && (
         <View style={{ paddingHorizontal: 16 }}>
           <RetryFailureBanner 
             isVisible={true} 
-            onResend={() => console.log('Resending alternative...')} 
-            onMarkCritical={() => console.log('Marking critical...')} 
+            onResend={() => resendMessage(failedRetryMessage.id)} 
+            onMarkCritical={() => console.log(`Marked ${failedRetryMessage.id} as critical dropout`)} 
           />
         </View>
       )}

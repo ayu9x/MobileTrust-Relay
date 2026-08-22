@@ -1,2 +1,2 @@
-export * from './cipher.js';
-export * from './hash.js';
+export * from './cipher';
+export * from './hash';

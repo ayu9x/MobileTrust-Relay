@@ -6,7 +6,7 @@ module.exports = {
       {
         root: ['./'],
         alias: {
-          '@mobiletrust/shared': './packages/shared/src/types.ts',
+          '@mobiletrust/shared': './packages/shared/src/index.ts',
         },
       },
     ],

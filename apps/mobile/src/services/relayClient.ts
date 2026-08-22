@@ -29,7 +29,7 @@ export class RelayClient {
   private mockHandler: MockStatusHandler | null = null;
   private mockCarrierDb: Map<string, CarrierReceiptPayload> = new Map();
 
-  constructor(baseUrl: string = 'http://localhost:8080', timeoutMs: number = CLOUD_SYNC_TIMEOUT) {
+  constructor(baseUrl: string = 'http://192.168.29.129:4000', timeoutMs: number = CLOUD_SYNC_TIMEOUT) {
     this.baseUrl = baseUrl.replace(/\/+$/, '');
     this.timeoutMs = timeoutMs;
   }
@@ -128,7 +128,7 @@ export class RelayClient {
 
     try {
       const requestPayload: BatchStatusRequest = { trackingIds };
-      const response = await fetch(`${this.baseUrl}/api/v1/relay/batch-status`, {
+      const response = await fetch(`${this.baseUrl}/api/status/batch`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -148,16 +148,30 @@ export class RelayClient {
       }
 
       const json = await response.json();
-      const validation = BatchStatusResponseSchema.safeParse(json);
-      if (!validation.success) {
-        throw new RelayClientError(
-          `Invalid cloud relay response format: ${validation.error.message}`,
-          422,
-          false
-        );
+
+      // Normalize if backend returned direct statuses or wrapped records
+      if (json.statuses && typeof json.statuses === 'object') {
+        const validation = BatchStatusResponseSchema.safeParse(json);
+        if (validation.success) {
+          return validation.data as BatchStatusResponse;
+        }
       }
 
-      return validation.data as BatchStatusResponse;
+      const records = json.data?.records || json.records || {};
+      const normalizedStatuses: Record<string, CarrierReceiptPayload> = {};
+      for (const [id, rec] of Object.entries(records)) {
+        const r = rec as any;
+        normalizedStatuses[id] = {
+          trackingId: r.trackingId || id,
+          recipient: r.recipient || '',
+          carrierStatus: r.rawCarrierStatus || (r.status === 'DELIVERED' ? 'DELIVRD' : r.status === 'FAILED' ? 'UNDELIV' : 'ACCEPTD'),
+          carrierTimestamp: r.deliveredAt || r.updatedAt || new Date().toISOString(),
+          carrierName: r.carrierName,
+          networkErrorCode: r.failureReason,
+        };
+      }
+
+      return { statuses: normalizedStatuses };
     } catch (err: unknown) {
       if (err instanceof RelayClientError) {
         throw err;
