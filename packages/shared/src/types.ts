@@ -3,7 +3,7 @@
  * Shared contract between Mobile, Cloud Relay, and Test suites.
  */
 
-export type DeliveryStatus = 'QUEUED_OFFLINE' | 'SENT_RADIO' | 'RELAYED_CLOUD' | 'DELIVERED' | 'FAILED_CARRIER';
+export type DeliveryStatus = 'QUEUED_OFFLINE' | 'SENT_RADIO' | 'RELAYED_CLOUD' | 'DELIVERED' | 'FAILED_CARRIER' | 'SENT' | 'FAILED';
 export type MessagePriority = 'HIGH_URGENT' | 'STANDARD';
 
 export interface EmergencyMessage {
