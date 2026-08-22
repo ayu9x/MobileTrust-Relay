@@ -2,29 +2,18 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import FirebaseService from '../services/cloud/FirebaseService';
 import { Alert } from 'react-native';
-
-export type MessageStatus = 'Sent' | 'Delivered' | 'Failed' | 'Pending';
-export type UrgencyLevel = 'Low' | 'High';
-
-export interface Message {
-  id: string;
-  recipient: string;
-  content: string;
-  status: MessageStatus;
-  urgency: UrgencyLevel;
-  timestamp: number;
-}
+import { EmergencyMessage, DeliveryStatus } from '@mobiletrust/shared';
 
 interface MessageContextType {
-  messages: Message[];
-  addMessage: (msg: Omit<Message, 'id' | 'status' | 'timestamp'>) => Promise<boolean>;
-  updateMessageStatus: (id: string, status: MessageStatus) => void;
+  messages: EmergencyMessage[];
+  addMessage: (msg: EmergencyMessage) => Promise<boolean>;
+  updateMessageStatus: (id: string, status: DeliveryStatus) => void;
 }
 
 const MessageContext = createContext<MessageContextType | undefined>(undefined);
 
 export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<EmergencyMessage[]>([]);
 
   useEffect(() => {
     const loadMessages = async () => {
@@ -47,7 +36,7 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
     );
   }, [messages]);
 
-  const addMessage = async (msg: Omit<Message, 'id' | 'status' | 'timestamp'>): Promise<boolean> => {
+  const addMessage = async (msg: EmergencyMessage): Promise<boolean> => {
     const isDuplicate = await FirebaseService.isDuplicate(msg.recipient, msg.content);
     
     if (isDuplicate) {
@@ -63,29 +52,21 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
           }
         ]
       );
-      return false; // Indicating we paused for user confirmation
+      return false;
     } else {
       processAddMessage(msg);
       return true;
     }
   };
 
-  const processAddMessage = (msg: Omit<Message, 'id' | 'status' | 'timestamp'>) => {
-    const newMessage: Message = {
-      ...msg,
-      id: Math.random().toString(36).substring(7),
-      status: 'Pending',
-      timestamp: Date.now(),
-    };
-    setMessages(prev => [newMessage, ...prev]);
-    
-    // Sync to cloud
-    FirebaseService.syncMessage(newMessage);
+  const processAddMessage = (msg: EmergencyMessage) => {
+    setMessages(prev => [msg, ...prev]);
+    FirebaseService.syncMessage(msg);
   };
 
-  const updateMessageStatus = (id: string, status: MessageStatus) => {
+  const updateMessageStatus = (id: string, status: DeliveryStatus) => {
     setMessages(prev => 
-      prev.map(m => m.id === id ? { ...m, status } : m)
+      prev.map(m => m.id === id ? { ...m, status, retryCount: status === 'FAILED_CARRIER' ? m.retryCount + 1 : m.retryCount } : m)
     );
   };
 

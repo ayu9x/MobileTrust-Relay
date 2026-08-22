@@ -1,8 +1,8 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import AppNavigator from './src/AppNavigator';
+import AppNavigator from './apps/mobile/src/AppNavigator';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { MessageProvider } from './src/context/MessageContext';
+import { MessageProvider } from './apps/mobile/src/context/MessageContext';
 
 const App = () => {
   return (
