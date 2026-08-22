@@ -1,6 +1,5 @@
-# MobileTrust Relay ![Hackathon Project](https://img.shields.io/badge/type-Hackathon%20Project-orange) ![Tests](https://img.shields.io/badge/tests-61%20passed-brightgreen) ![React Native](https://img.shields.io/badge/React%20Native-0.74-blue)
-
-## A Resilient, Offline-First Emergency SMS Delivery Verification & Relay Engine for Disaster Operations
+# MobileTrust Relay ![Hackathon Project](https://img.shields.io/badge/type-Hackathon%20Project-orange) 
+## A Resilient, Offline-First Emergency SMS Delivery Verification & Serverless Relay Engine for Disaster Operations
 
 > In critical disaster zones, messages save lives — but unconfirmed messages waste precious rescue time. **MobileTrust Relay** delivers deterministic, offline-first delivery verification across intermittent networks using native mobile SMS dispatch, carrier delivery receipts (DLR), and a stateless cloud relay backend — with zero traditional database servers and zero internet required on recipient devices.
 
@@ -54,38 +53,11 @@ MobileTrust Relay solves these challenges with a local-first, serverless-backed 
 
 ### End-to-End Delivery Lifecycle
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Responder as Emergency Responder (Mobile)
-    participant EdgeStore as Local Store & Offline Queue
-    participant Radio as Mobile Cellular Radio (SMS)
-    participant Carrier as Telecom Tower (Airtel/Jio/BSNL)
-    participant Relay as Serverless Cloud Relay (localhost:4000)
-    actor Recipient as Recipient (No Internet Required)
+<div align="center">
+  <img src="docs/emergency_alert_delivery_sequence.png" alt="Aetheris Engine Architecture Diagram">
+  <p style="margin-top: 8px;"><b>Figure 1. End-to-End Emergency Alert Delivery Lifecycle: Offline-First SMS Dispatch to Confirmed Delivery</b></p>
+</div>
 
-    Responder->>EdgeStore: Create Alert ("MTR-583285-01ED")
-    alt Device Offline / Airplane Mode
-        EdgeStore-->>Responder: Status: OFFLINE QUEUED ⏳ (stored in 15MB budget)
-        Note over EdgeStore: Auto-flushes on reconnect
-    else Device Online
-        EdgeStore->>Radio: Dispatch SMS with [TRK:MTR-583285-01ED]
-        Radio->>Carrier: GSM SMS Transmission
-        EdgeStore-->>Responder: Status: SENT (CARRIER) →
-        EdgeStore->>Relay: POST /api/messages/ingest (parallel probe)
-    end
-
-    alt Standard Delivery
-        Carrier->>Recipient: GSM SMS Delivered
-        Carrier->>Relay: DLR Webhook (DELIVRD, ~2.5s)
-        Relay-->>EdgeStore: Batch poll reconciliation
-        EdgeStore-->>Responder: Status: DELIVERED ✓ (Green Badge) < 3s
-    else Dropout / Tower Failure
-        Relay-->>EdgeStore: ACCEPTD + failure keyword detected
-        EdgeStore-->>Responder: FAILED 1/3 → 2/3 → 3/3 (1.2s each)
-        EdgeStore-->>Responder: 🚩 CRITICAL FAILURE BANNER appears
-    end
-```
 
 ### Four-Layer Data Pipeline
 
@@ -303,5 +275,3 @@ curl http://localhost:4000/api/status/all
 ## Conclusion & Engineering Summary
 
 **MobileTrust Relay** proves that mission-critical emergency verification does not require heavyweight persistent database servers or recipient internet connectivity. By combining native mobile SMS dispatch with stateless serverless cloud relays, carrier delivery receipt webhooks, and an active network probe engine, the system achieves sub-3-second delivery confirmations, 2-hour offline survivability, progressive retry dropout triage, and cryptographic payload protection in rural disaster environments.
-
-**61 automated tests across 12 test suites** — all passing.
