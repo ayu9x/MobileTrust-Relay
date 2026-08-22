@@ -1,0 +1,48 @@
+[
+  {
+    "scenario": "happy_path_instant",
+    "description": "Standard emergency alert in moderate connectivity area (Airtel-North)",
+    "trackingId": "MTR-172432-8F2B",
+    "recipient": "+919876543210",
+    "carrierName": "Airtel-North",
+    "transitions": [
+      { "status": "BUFFERED", "delayMs": 1000 },
+      { "status": "DELIVRD", "delayMs": 3500 }
+    ]
+  },
+  {
+    "scenario": "disaster_delayed_delivery",
+    "description": "Flooding zone with network congestion (BSNL Disaster Relief Network)",
+    "trackingId": "MTR-172433-4C9A",
+    "recipient": "+919812345678",
+    "carrierName": "BSNL-DisasterRelief",
+    "transitions": [
+      { "status": "BUFFERED", "delayMs": 2000 },
+      { "status": "ACCEPTD", "delayMs": 5000 },
+      { "status": "DELIVRD", "delayMs": 8500 }
+    ]
+  },
+  {
+    "scenario": "tower_failure_dropout",
+    "description": "Complete cellular tower damage; 3 retries fail leading to fatal alert trigger",
+    "trackingId": "MTR-172434-9E1D",
+    "recipient": "+919765432109",
+    "carrierName": "Jio-MH",
+    "transitions": [
+      { "status": "BUFFERED", "delayMs": 1500 },
+      { "status": "UNDELIV", "delayMs": 4000, "networkErrorCode": "ERR_CELL_TOWER_POWER_LOSS" }
+    ]
+  },
+  {
+    "scenario": "duplicate_responder_alerts",
+    "description": "Two distinct search-and-rescue teams sending same alert to local hospital",
+    "trackingIdPrimary": "MTR-172435-1A2B",
+    "trackingIdDuplicate": "MTR-172435-3C4D",
+    "recipient": "+919900112233",
+    "carrierName": "Airtel-North",
+    "message": "URGENT: Requesting 3 ambulances at Sector 7 bridge",
+    "transitions": [
+      { "status": "DELIVRD", "delayMs": 3000 }
+    ]
+  }
+]
