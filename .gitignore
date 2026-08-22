@@ -1,0 +1,5 @@
+node_modules/
+dist/
+.cloud_storage_bucket/
+.env
+*.log
