@@ -17,7 +17,8 @@ export const AppNavigator = () => {
     <Stack.Navigator 
       initialRouteName="History"
       screenOptions={{
-        headerStyle: { backgroundColor: '#1E293B' },
+        headerShown: false,
+        headerStyle: { backgroundColor: '#0B0F19' },
         headerTintColor: '#F8FAFC',
         headerTitleStyle: { fontWeight: 'bold' },
       }}

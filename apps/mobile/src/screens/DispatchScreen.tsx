@@ -14,12 +14,14 @@ import { MessagePriority, EmergencyMessage } from '@mobiletrust/shared';
 import { PrioritySelector } from '../components/PrioritySelector';
 import { SmsDispatcher } from '../native/SmsDispatcher';
 import { useMessages } from '../context/MessageContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MAX_CHARS = 160;
 
 export const DispatchScreen = () => {
   const navigation = useNavigation();
   const { addMessage } = useMessages();
+  const insets = useSafeAreaInsets();
   
   const [recipient, setRecipient] = useState('');
   const [content, setContent] = useState('');
@@ -33,7 +35,6 @@ export const DispatchScreen = () => {
   };
 
   const handleSend = async () => {
-    // Validation
     const phoneRegex = /^\+91[0-9]{10}$/;
     if (!phoneRegex.test(recipient.trim())) {
       Alert.alert('Invalid Format', 'Please enter a valid Indian mobile number starting with +91');
@@ -57,10 +58,8 @@ export const DispatchScreen = () => {
     };
 
     try {
-      // 1. Dispatch native SMS
       const dispatched = await SmsDispatcher.dispatch(message);
       
-      // 2. Add to local store / cloud queue
       if (dispatched) {
         message.status = 'SENT_RADIO';
         message.timestampSent = Date.now();
@@ -79,88 +78,104 @@ export const DispatchScreen = () => {
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <View style={styles.formCard}>
-        <Text style={styles.title}>New Emergency Dispatch</Text>
+    <View style={styles.container}>
+      <View style={[styles.headerContainer, { paddingTop: Math.max(insets.top, 20) }]}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.backIcon}>←</Text>
+        </TouchableOpacity>
+      </View>
+
+      <KeyboardAvoidingView 
+        style={styles.keyboardView} 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <Text style={styles.cardTitle}>New Alert.</Text>
         
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Recipient (IND)</Text>
+          <Text style={styles.label}>To</Text>
           <TextInput
             style={styles.input}
-            placeholder="+91XXXXXXXXXX"
+            placeholder="+91"
             keyboardType="phone-pad"
             value={recipient}
             onChangeText={setRecipient}
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor="#52525B"
           />
         </View>
 
         <View style={styles.inputGroup}>
           <View style={styles.labelRow}>
-            <Text style={styles.label}>Message Payload</Text>
-            <Text style={[styles.counter, content.length > MAX_CHARS - 10 && styles.counterWarning]}>
-              {content.length}/{MAX_CHARS}
-            </Text>
+            <Text style={styles.label}>Message</Text>
+            <Text style={styles.counter}>{content.length} / {MAX_CHARS}</Text>
           </View>
           <TextInput
             style={[styles.input, styles.textArea]}
-            placeholder="Situation details, location..."
+            placeholder="Describe the emergency..."
             multiline
             maxLength={MAX_CHARS}
             numberOfLines={4}
             value={content}
             onChangeText={setContent}
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor="#52525B"
           />
         </View>
 
-        <PrioritySelector priority={priority} onChange={setPriority} />
+        <View style={styles.priorityWrapper}>
+           <PrioritySelector priority={priority} onChange={setPriority} />
+        </View>
 
         <TouchableOpacity 
+          activeOpacity={0.8}
           style={[styles.sendButton, isSending && styles.sendButtonDisabled]} 
           onPress={handleSend}
           disabled={isSending}
         >
           <Text style={styles.sendButtonText}>
-            {isSending ? 'DISPATCHING...' : 'SEND ALERT VIA CARRIER'}
+            {isSending ? 'Sending...' : 'Send Alert'}
           </Text>
         </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#111827', // Premium Dark background
-    padding: 16,
-    justifyContent: 'center',
+    backgroundColor: '#000000', 
   },
-  formCard: {
-    backgroundColor: '#1F2937',
-    borderRadius: 20,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 15,
-    elevation: 10,
-    borderWidth: 1,
-    borderColor: '#374151',
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    backgroundColor: '#000000',
   },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#F9FAFB',
-    marginBottom: 24,
-    letterSpacing: 0.5,
+  backButton: {
+    padding: 8,
+  },
+  backIcon: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '300',
+  },
+  keyboardView: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 10,
+  },
+  cardTitle: {
+    fontSize: 34,
+    fontWeight: '300',
+    color: '#FFFFFF',
+    letterSpacing: -1,
+    marginBottom: 40,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   labelRow: {
     flexDirection: 'row',
@@ -170,53 +185,49 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#9CA3AF',
-    textTransform: 'uppercase',
+    fontWeight: '500',
+    color: '#71717A',
     letterSpacing: 0.5,
     marginBottom: 8,
   },
   counter: {
     fontSize: 12,
-    color: '#9CA3AF',
-  },
-  counterWarning: {
-    color: '#F59E0B',
-    fontWeight: 'bold',
+    fontWeight: '400',
+    color: '#71717A',
   },
   input: {
-    backgroundColor: '#374151',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    color: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#4B5563',
+    backgroundColor: '#000000',
+    fontSize: 18,
+    color: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#27272A',
+    paddingVertical: 12,
   },
   textArea: {
     height: 100,
     textAlignVertical: 'top',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    borderBottomWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+  },
+  priorityWrapper: {
+    marginBottom: 40,
   },
   sendButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#FFFFFF',
     paddingVertical: 18,
-    borderRadius: 12,
+    borderRadius: 30,
     alignItems: 'center',
-    marginTop: 10,
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 5,
   },
   sendButtonDisabled: {
-    backgroundColor: '#4B5563',
-    shadowOpacity: 0,
+    opacity: 0.5,
   },
   sendButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '800',
-    letterSpacing: 1,
+    color: '#000000',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

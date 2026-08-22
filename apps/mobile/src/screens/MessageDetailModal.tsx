@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../AppNavigator';
 import { useMessages } from '../context/MessageContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type DetailRouteProp = RouteProp<RootStackParamList, 'MessageDetail'>;
 
@@ -10,6 +11,7 @@ export const MessageDetailModal = () => {
   const route = useRoute<DetailRouteProp>();
   const navigation = useNavigation();
   const { messages } = useMessages();
+  const insets = useSafeAreaInsets();
   
   const message = messages.find(m => m.id === route.params.messageId);
 
@@ -22,24 +24,29 @@ export const MessageDetailModal = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Delivery Lifecycle</Text>
+    <View style={styles.container}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeBtn}>
-          <Text style={styles.closeBtnText}>Done</Text>
+          <Text style={styles.closeBtnText}>Close</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
+        <Text style={styles.title}>Details.</Text>
+
         <View style={styles.metaCard}>
-          <Text style={styles.label}>Tracking ID</Text>
+          <Text style={styles.label}>ID</Text>
           <Text style={styles.value}>{message.id}</Text>
           
-          <Text style={styles.label}>Recipient</Text>
+          <View style={styles.spacer} />
+          
+          <Text style={styles.label}>To</Text>
           <Text style={styles.value}>{message.recipient}</Text>
           
-          <Text style={styles.label}>Payload</Text>
-          <Text style={styles.value}>{message.content}</Text>
+          <View style={styles.spacer} />
+          
+          <Text style={styles.label}>Message</Text>
+          <Text style={styles.valueContent}>{message.content}</Text>
         </View>
 
         <Text style={styles.sectionTitle}>Timeline</Text>
@@ -50,8 +57,8 @@ export const MessageDetailModal = () => {
             <View style={[styles.node, styles.nodeActive]} />
             <View style={[styles.line, message.timestampSent ? styles.lineActive : null]} />
             <View style={styles.stepContent}>
-              <Text style={styles.stepTitle}>Message Created</Text>
-              <Text style={styles.stepTime}>{new Date(message.timestampCreated).toLocaleString()}</Text>
+              <Text style={styles.stepTitle}>Queued</Text>
+              <Text style={styles.stepTime}>{new Date(message.timestampCreated).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</Text>
             </View>
           </View>
 
@@ -60,9 +67,11 @@ export const MessageDetailModal = () => {
             <View style={[styles.node, message.timestampSent ? styles.nodeActive : null]} />
             <View style={[styles.line, message.timestampDelivered ? styles.lineActive : null]} />
             <View style={styles.stepContent}>
-              <Text style={[styles.stepTitle, !message.timestampSent && styles.stepPending]}>Dispatched to Carrier (Radio)</Text>
-              {message.timestampSent && (
-                <Text style={styles.stepTime}>{new Date(message.timestampSent).toLocaleString()}</Text>
+              <Text style={[styles.stepTitle, !message.timestampSent && styles.stepPending]}>Radio Transmission</Text>
+              {message.timestampSent ? (
+                <Text style={styles.stepTime}>{new Date(message.timestampSent).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</Text>
+              ) : (
+                <Text style={styles.stepPendingTime}>Pending...</Text>
               )}
             </View>
           </View>
@@ -72,10 +81,10 @@ export const MessageDetailModal = () => {
             <View style={[styles.node, message.status === 'DELIVERED' ? styles.nodeSuccess : message.status === 'FAILED_CARRIER' ? styles.nodeError : null]} />
             <View style={styles.stepContent}>
               <Text style={[styles.stepTitle, !message.timestampDelivered && message.status !== 'FAILED_CARRIER' && styles.stepPending]}>
-                {message.status === 'FAILED_CARRIER' ? 'Delivery Failed' : 'Confirmed Delivered'}
+                {message.status === 'FAILED_CARRIER' ? 'Failed' : 'Delivered'}
               </Text>
               {message.timestampDelivered && (
-                <Text style={styles.stepTime}>{new Date(message.timestampDelivered).toLocaleString()}</Text>
+                <Text style={styles.stepTime}>{new Date(message.timestampDelivered).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</Text>
               )}
               {message.status === 'FAILED_CARRIER' && (
                 <Text style={styles.stepError}>Failed after {message.retryCount} retries</Text>
@@ -84,36 +93,54 @@ export const MessageDetailModal = () => {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F172A' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', padding: 20, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#1E293B' },
-  title: { fontSize: 18, color: '#F8FAFC', fontWeight: '800' },
-  closeBtn: { padding: 8 },
-  closeBtnText: { color: '#3B82F6', fontWeight: '700', fontSize: 16 },
-  error: { color: '#EF4444', textAlign: 'center', marginTop: 50 },
+  container: { flex: 1, backgroundColor: '#000000' },
+  header: { 
+    flexDirection: 'row', 
+    justifyContent: 'flex-end', 
+    paddingHorizontal: 24, 
+    paddingBottom: 16,
+    backgroundColor: '#000000',
+  },
+  title: { fontSize: 34, color: '#FFFFFF', fontWeight: '300', letterSpacing: -1, marginBottom: 40 },
+  closeBtn: { paddingVertical: 8 },
+  closeBtnText: { color: '#FFFFFF', fontWeight: '500', fontSize: 16 },
+  error: { color: '#EF4444', textAlign: 'center', marginTop: 100, fontSize: 16 },
   
-  scroll: { padding: 20 },
-  metaCard: { backgroundColor: '#1E293B', padding: 16, borderRadius: 12, marginBottom: 24, borderWidth: 1, borderColor: '#334155' },
-  label: { color: '#64748B', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', marginBottom: 4, marginTop: 12 },
-  value: { color: '#F8FAFC', fontSize: 15 },
+  scroll: { paddingHorizontal: 24, paddingBottom: 100 },
+  metaCard: { 
+    marginBottom: 48, 
+  },
+  spacer: { height: 24 },
+  label: { color: '#71717A', fontSize: 13, fontWeight: '500', marginBottom: 4 },
+  value: { color: '#FFFFFF', fontSize: 16, fontWeight: '400' },
+  valueContent: { color: '#D4D4D8', fontSize: 16, lineHeight: 24, fontWeight: '400' },
   
-  sectionTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '800', marginBottom: 16 },
+  sectionTitle: { color: '#71717A', fontSize: 13, fontWeight: '500', marginBottom: 24, textTransform: 'uppercase', letterSpacing: 1 },
   
-  timeline: { paddingLeft: 10 },
-  timelineStep: { flexDirection: 'row', marginBottom: 30, position: 'relative' },
-  node: { width: 14, height: 14, borderRadius: 7, backgroundColor: '#334155', borderWidth: 3, borderColor: '#0F172A', zIndex: 2 },
-  nodeActive: { backgroundColor: '#3B82F6' },
+  timeline: { paddingLeft: 8 },
+  timelineStep: { flexDirection: 'row', marginBottom: 40, position: 'relative' },
+  node: { 
+    width: 12, 
+    height: 12, 
+    borderRadius: 6, 
+    backgroundColor: '#27272A', 
+    zIndex: 2,
+    marginTop: 4
+  },
+  nodeActive: { backgroundColor: '#FFFFFF' },
   nodeSuccess: { backgroundColor: '#10B981' },
   nodeError: { backgroundColor: '#EF4444' },
-  line: { position: 'absolute', top: 14, left: 6, width: 2, height: 50, backgroundColor: '#334155', zIndex: 1 },
-  lineActive: { backgroundColor: '#3B82F6' },
-  stepContent: { marginLeft: 20, marginTop: -4 },
-  stepTitle: { color: '#F8FAFC', fontSize: 15, fontWeight: '700' },
-  stepPending: { color: '#64748B' },
-  stepTime: { color: '#94A3B8', fontSize: 13, marginTop: 4 },
+  line: { position: 'absolute', top: 16, left: 5, width: 2, height: 60, backgroundColor: '#27272A', zIndex: 1 },
+  lineActive: { backgroundColor: '#FFFFFF' },
+  stepContent: { marginLeft: 24, marginTop: 0 },
+  stepTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: '500' },
+  stepPending: { color: '#71717A' },
+  stepTime: { color: '#A1A1AA', fontSize: 13, marginTop: 4 },
+  stepPendingTime: { color: '#71717A', fontSize: 13, marginTop: 4 },
   stepError: { color: '#EF4444', fontSize: 13, marginTop: 4 },
 });
