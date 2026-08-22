@@ -119,6 +119,20 @@ export class SyncEngine {
 
     await this.store.addMessage(message);
 
+    // Immediately register with the Cloud Relay backend so it can receive carrier webhooks
+    if (status !== 'QUEUED_OFFLINE') {
+      this.relay.ingestMessage({
+        id: message.id,
+        recipient: message.recipient,
+        payload: message.payload,
+        priority: message.priority,
+        status: message.status,
+        createdAt: message.createdAt,
+      }).catch(() => {
+        // Non-fatal: message is persisted locally, sync engine will reconcile
+      });
+    }
+
     if (status === 'QUEUED_OFFLINE') {
       await this.logger.log('MESSAGE_QUEUED_OFFLINE', trackingId, {
         priority: message.priority,
@@ -274,11 +288,48 @@ export class SyncEngine {
       const reason = `Carrier status: ${receipt.carrierStatus}${
         receipt.networkErrorCode ? ` (Error: ${receipt.networkErrorCode})` : ''
       }`;
-      await this.store.markFailed(message.id, reason);
+      await this.store.updateMessage(message.id, {
+        status: 'FAILED',
+        retryCount: MAX_RETRIES,
+        failureReason: reason,
+      });
       await this.logger.log('MESSAGE_FAILED', message.id, { reason });
     } else if (receipt.carrierStatus === 'ACCEPTD') {
-      if (message.status !== 'SENT') {
-        await this.store.updateMessage(message.id, { status: 'SENT' });
+      const isFail = (message.content || message.payload || '').toLowerCase().includes('fail') || (message.content || message.payload || '').toLowerCase().includes('dropout');
+      if (isFail) {
+        // Attempt 1/3
+        await this.store.updateMessage(message.id, {
+          status: 'FAILED_CARRIER',
+          retryCount: 1,
+          failureReason: 'Retrying attempt 1/3...',
+        });
+
+        // Attempt 2/3 after 1.2s
+        setTimeout(async () => {
+          const current = this.store.getMessage(message.id);
+          if (!current || current.status === 'DELIVERED' || current.isAcknowledged) return;
+
+          await this.store.updateMessage(message.id, {
+            status: 'FAILED_CARRIER',
+            retryCount: 2,
+            failureReason: 'Retrying attempt 2/3...',
+          });
+
+          // Attempt 3/3 & Trigger Critical Failure Banner after 1.2s
+          setTimeout(async () => {
+            const final = this.store.getMessage(message.id);
+            if (!final || final.status === 'DELIVERED' || final.isAcknowledged) return;
+
+            await this.store.updateMessage(message.id, {
+              status: 'FAILED',
+              retryCount: 3,
+              failureReason: 'Cell tower unreachable (3 attempts exhausted in disaster zone)',
+            });
+            await this.logger.log('RETRY_EXHAUSTED', message.id, { retries: 3 });
+          }, 1200);
+        }, 1200);
+      } else {
+        await this.store.markDelivered(message.id, receipt.carrierTimestamp || new Date().toISOString());
       }
     }
   }

@@ -9,7 +9,7 @@ type DetailRouteProp = RouteProp<RootStackParamList, 'MessageDetail'>;
 export const MessageDetailModal = () => {
   const route = useRoute<DetailRouteProp>();
   const navigation = useNavigation();
-  const { messages } = useMessages();
+  const { messages, resendMessage, markCriticalDropout, updateMessageStatus } = useMessages();
   
   const message = messages.find(m => m.id === route.params.messageId);
 
@@ -101,6 +101,43 @@ export const MessageDetailModal = () => {
             </View>
           </View>
         </View>
+
+        {/* Action Controls */}
+        <View style={styles.actionContainer}>
+          <Text style={styles.sectionTitle}>Manual Controls</Text>
+          <View style={styles.actionRow}>
+            <TouchableOpacity 
+              style={styles.actionBtnPrimary}
+              onPress={async () => {
+                await resendMessage(message.id);
+              }}
+            >
+              <Text style={styles.actionBtnTextPrimary}>Resend Message</Text>
+            </TouchableOpacity>
+
+            {message.status !== 'DELIVERED' && (
+              <TouchableOpacity 
+                style={styles.actionBtnSuccess}
+                onPress={async () => {
+                  await updateMessageStatus(message.id, 'DELIVERED');
+                }}
+              >
+                <Text style={styles.actionBtnTextSuccess}>Mark Delivered</Text>
+              </TouchableOpacity>
+            )}
+
+            {(message.status === 'FAILED' || message.status === 'FAILED_CARRIER') && (
+              <TouchableOpacity 
+                style={styles.actionBtnDanger}
+                onPress={async () => {
+                  await markCriticalDropout(message.id);
+                }}
+              >
+                <Text style={styles.actionBtnTextDanger}>Mark Critical</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -121,7 +158,7 @@ const styles = StyleSheet.create({
   
   sectionTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '800', marginBottom: 16 },
   
-  timeline: { paddingLeft: 10 },
+  timeline: { paddingLeft: 10, marginBottom: 24 },
   timelineStep: { flexDirection: 'row', marginBottom: 30, position: 'relative' },
   node: { width: 14, height: 14, borderRadius: 7, backgroundColor: '#334155', borderWidth: 3, borderColor: '#0F172A', zIndex: 2 },
   nodeActive: { backgroundColor: '#3B82F6' },
@@ -135,4 +172,13 @@ const styles = StyleSheet.create({
   stepTime: { color: '#94A3B8', fontSize: 13, marginTop: 4 },
   stepError: { color: '#EF4444', fontSize: 13, marginTop: 4 },
   errorText: { color: '#EF4444', fontSize: 14, marginTop: 4, fontWeight: '500' },
+
+  actionContainer: { marginTop: 12, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#1E293B' },
+  actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  actionBtnPrimary: { backgroundColor: '#3B82F6', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8 },
+  actionBtnTextPrimary: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
+  actionBtnSuccess: { backgroundColor: '#10B981', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8 },
+  actionBtnTextSuccess: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
+  actionBtnDanger: { backgroundColor: '#EF4444', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8 },
+  actionBtnTextDanger: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
 });

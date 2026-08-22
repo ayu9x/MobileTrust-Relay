@@ -9,6 +9,7 @@ import {
 } from '@mobiletrust/shared';
 import { messageStore } from '../store/messageStore';
 import { syncEngine } from '../services/syncEngine';
+import { relayClient } from '../services/relayClient';
 import { networkMonitor } from '../services/networkMonitor';
 import { generateFingerprint } from '../crypto/hash';
 import { SmsDispatcher } from '../native/SmsDispatcher';
@@ -21,6 +22,8 @@ interface MessageContextType {
   updateMessageStatus: (id: string, status: DeliveryStatus) => Promise<void>;
   syncNow: () => Promise<void>;
   resendMessage: (id: string) => Promise<void>;
+  markCriticalDropout: (id: string) => Promise<void>;
+  clearAllMessages: () => Promise<void>;
 }
 
 const MessageContext = createContext<MessageContextType | undefined>(undefined);
@@ -46,7 +49,8 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
       refreshFromStore();
     });
 
-    // 2. Start SyncEngine lifecycle
+    // 2. Start SyncEngine and NetworkMonitor lifecycle
+    networkMonitor.start(2000);
     syncEngine.start();
 
     // 3. Subscribe to Store Updates
@@ -62,18 +66,19 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
     });
 
-    // 5. Background Poller for Sub-15s Live Status Sync when pending messages exist
+    // 5. Background Poller for Sub-3s Live Status Sync when pending messages exist
     const poller = setInterval(() => {
       if (networkMonitor.isOnline() && messageStore.getPendingMessages().length > 0) {
         syncEngine.syncQueue().catch(console.error);
       }
-    }, STATUS_POLL_INTERVAL);
+    }, 2000);
 
     return () => {
       unsubStore();
       unsubNetwork();
       clearInterval(poller);
       syncEngine.stop();
+      networkMonitor.stop();
     };
   }, [refreshFromStore]);
 
@@ -100,11 +105,25 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
     // 2. Persist in Unified MessageStore
     await messageStore.addMessage(msg);
 
-    // 3. If online, trigger cloud synchronization immediately (best-effort, non-fatal)
+    // 3. Ingest tracking ID to Cloud Relay
+    relayClient.ingestMessage({
+      id: msg.id,
+      recipient: msg.recipient,
+      payload: msg.content || msg.payload || '',
+      priority: msg.priority,
+      status: msg.status,
+      createdAt: msg.createdAt,
+    }).catch(() => {});
+
+    // 4. If online, trigger cloud synchronization immediately and schedule carrier receipt reconciliation
     if (networkMonitor.isOnline()) {
-      syncEngine.syncQueue().catch(() => {
-        // Backend unreachable — message stays QUEUED_OFFLINE and will retry on next poll
-      });
+      syncEngine.syncQueue().catch(() => {});
+      // Reconcile carrier DLR delivery receipt after 2 seconds
+      setTimeout(() => {
+        if (networkMonitor.isOnline()) {
+          syncEngine.syncQueue().catch(() => {});
+        }
+      }, 2000);
     }
   };
 
@@ -165,12 +184,47 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
       status: networkMonitor.isOnline() ? 'SENT' : 'QUEUED_OFFLINE',
       retryCount: 0,
       failureReason: undefined,
+      isAcknowledged: false,
+      isCriticalDropout: false,
     });
 
     await SmsDispatcher.dispatch(existing);
+
+    relayClient.ingestMessage({
+      id: existing.id,
+      recipient: existing.recipient,
+      payload: existing.content || existing.payload || '',
+      priority: existing.priority,
+      status: networkMonitor.isOnline() ? 'SENT' : 'QUEUED_OFFLINE',
+      createdAt: existing.createdAt,
+    }).catch(() => {});
+
     if (networkMonitor.isOnline()) {
       await syncEngine.syncQueue();
+      setTimeout(() => {
+        if (networkMonitor.isOnline()) {
+          syncEngine.syncQueue().catch(() => {});
+        }
+      }, 2000);
     }
+  };
+
+  const markCriticalDropout = async (id: string): Promise<void> => {
+    const existing = messageStore.getMessage(id);
+    if (!existing) return;
+
+    await messageStore.updateMessage(id, {
+      status: 'FAILED',
+      failureReason: 'Critical Dropout: Recipient unreachable after 3 attempts',
+      retryCount: 0,
+      isAcknowledged: true,
+      isCriticalDropout: true,
+    });
+  };
+
+  const clearAllMessages = async (): Promise<void> => {
+    await messageStore.clear();
+    relayClient.clearMockReceipts();
   };
 
   return (
@@ -182,7 +236,9 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
         addMessage, 
         updateMessageStatus, 
         syncNow, 
-        resendMessage 
+        resendMessage,
+        markCriticalDropout,
+        clearAllMessages,
       }}
     >
       {children}

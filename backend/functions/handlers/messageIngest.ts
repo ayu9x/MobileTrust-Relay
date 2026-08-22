@@ -44,6 +44,30 @@ export const handleMessageIngest = async (req: Request, res: Response) => {
       `[MESSAGE INGEST] Registered TrackingID: ${id} | Priority: ${priority} | Clustered: ${dedupResult.isDuplicate} (Cluster Size: ${dedupResult.clusterSize})`
     );
 
+    // Realistic Carrier DLR Simulation (auto-delivers after 2.5s for live demo)
+    setTimeout(async () => {
+      try {
+        const isFailureSim = (payload || '').toLowerCase().includes('fail') || (payload || '').toLowerCase().includes('dropout');
+        const deliveryStatus = isFailureSim ? 'FAILED' : 'DELIVERED';
+        const carrierStatus = isFailureSim ? 'UNDELIV' : 'DELIVRD';
+        const failureReason = isFailureSim ? 'Simulated cell tower dropout in disaster zone' : undefined;
+
+        const updated: RelayStatusRecord = {
+          ...relayRecord,
+          status: deliveryStatus,
+          rawCarrierStatus: carrierStatus,
+          updatedAt: new Date().toISOString(),
+          deliveredAt: !isFailureSim ? new Date().toISOString() : undefined,
+          carrierName: 'Jio-DisasterRelief',
+          failureReason,
+        };
+        await relayStore.putRecord(updated);
+        console.log(`[CARRIER SIMULATION] Auto-delivered TrackingID: ${id} -> ${deliveryStatus}`);
+      } catch (err) {
+        console.error('[CARRIER SIMULATION ERROR]', err);
+      }
+    }, 2500);
+
     return res.status(201).json({
       success: true,
       record: relayRecord,
@@ -59,3 +83,4 @@ export const handleMessageIngest = async (req: Request, res: Response) => {
     });
   }
 };
+

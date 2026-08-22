@@ -18,12 +18,12 @@ function bufferToHex(buffer: ArrayBuffer): string {
  * @param timestamp Optional timestamp in milliseconds (defaults to Date.now())
  * @returns Tracking ID string formatted for SMS compatibility
  */
-export function generateTrackingId(timestamp: number = Date.now()): string {
-  // Extract 6-digit timestamp part (modulo 1000000 ensures exactly 6 digits)
-  const timePart = (Math.floor(timestamp) % 1000000).toString().padStart(6, '0');
+let sequenceCounter = Math.floor(Math.random() * 0x1000);
 
-  // Generate 4-char uppercase hex hash using Math.random() (Hermes-compatible)
-  const hashPart = Math.floor(Math.random() * 0xffff)
+export function generateTrackingId(timestamp: number = Date.now()): string {
+  const timePart = (Math.floor(timestamp) % 1000000).toString().padStart(6, '0');
+  sequenceCounter = (sequenceCounter + 1) % 0x10000;
+  const hashPart = sequenceCounter
     .toString(16)
     .padStart(4, '0')
     .toUpperCase();

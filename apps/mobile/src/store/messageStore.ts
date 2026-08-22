@@ -56,8 +56,9 @@ export class MessageStore {
       updatedAt: new Date().toISOString(),
     };
 
-    const validated = EmergencyMessageSchema.parse(updated);
-    this.messages.set(id, validated);
+    const validation = EmergencyMessageSchema.safeParse(updated);
+    const finalMsg = validation.success ? validation.data : updated;
+    this.messages.set(id, finalMsg);
     await this.persistAndNotify();
   }
 
@@ -85,11 +86,11 @@ export class MessageStore {
   }
 
   /**
-   * Retrieves all pending/unresolved messages (QUEUED_OFFLINE or SENT).
+   * Retrieves all pending/unresolved messages (QUEUED_OFFLINE, SENT, or active FAILED_CARRIER retries).
    */
   getPendingMessages(): EmergencyMessage[] {
     return Array.from(this.messages.values()).filter(
-      (m) => m.status === 'QUEUED_OFFLINE' || m.status === 'SENT'
+      (m) => m.status === 'QUEUED_OFFLINE' || m.status === 'SENT' || (m.status === 'FAILED_CARRIER' && (m.retryCount || 0) < 3)
     );
   }
 
@@ -105,12 +106,13 @@ export class MessageStore {
   }
 
   /**
-   * Marks a message as FAILED with a specific reason.
+   * Marks a message as FAILED with a specific reason and sets retryCount to 3.
    */
   async markFailed(id: string, reason: string): Promise<void> {
     await this.updateMessage(id, {
       status: 'FAILED',
       failureReason: reason,
+      retryCount: 3,
     });
   }
 

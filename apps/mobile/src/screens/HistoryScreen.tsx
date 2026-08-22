@@ -5,7 +5,10 @@ import {
   FlatList, 
   TouchableOpacity, 
   StyleSheet, 
-  SafeAreaView 
+  SafeAreaView,
+  RefreshControl,
+  ActivityIndicator,
+  Alert
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -21,8 +24,36 @@ type FilterType = 'ALL' | 'DELIVERED' | 'FAILED';
 
 export const HistoryScreen = () => {
   const navigation = useNavigation<HistoryScreenProp>();
-  const { messages, isOffline, storageStats, resendMessage, syncNow } = useMessages();
+  const { messages, isOffline, storageStats, resendMessage, markCriticalDropout, syncNow, clearAllMessages } = useMessages();
   const [filter, setFilter] = useState<FilterType>('ALL');
+  const [dismissedBannerIds, setDismissedBannerIds] = useState<Set<string>>(new Set());
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await syncNow();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleClearMemory = () => {
+    Alert.alert(
+      'Reset Storage Budget',
+      'Are you sure you want to clear all stored emergency alerts and reset local cache to 0 MB?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Clear All', 
+          style: 'destructive',
+          onPress: async () => {
+            await clearAllMessages();
+          }
+        }
+      ]
+    );
+  };
 
   const storageBytes = storageStats?.totalBytes || 0;
   const storageLimitBytes = storageStats?.limitBytes || 15 * 1024 * 1024;
@@ -30,7 +61,7 @@ export const HistoryScreen = () => {
 
   const filteredMessages = useMemo(() => {
     if (filter === 'DELIVERED') {
-      return messages.filter(m => m.status === 'DELIVERED');
+      return messages.filter(m => m.status === 'DELIVERED' || m.status === 'RELAYED_CLOUD');
     }
     if (filter === 'FAILED') {
       return messages.filter(m => m.status === 'FAILED' || m.status === 'FAILED_CARRIER');
@@ -40,9 +71,23 @@ export const HistoryScreen = () => {
 
   const failedRetryMessage = useMemo(() => {
     return messages.find(
-      m => (m.status === 'FAILED' || m.status === 'FAILED_CARRIER') && m.retryCount >= 3
+      m => (m.status === 'FAILED' || m.status === 'FAILED_CARRIER') && 
+           m.retryCount >= 3 &&
+           !m.isAcknowledged &&
+           !m.isCriticalDropout &&
+           !dismissedBannerIds.has(m.id)
     );
-  }, [messages]);
+  }, [messages, dismissedBannerIds]);
+
+  const handleResend = async (id: string) => {
+    setDismissedBannerIds(prev => new Set(prev).add(id));
+    await resendMessage(id);
+  };
+
+  const handleMarkCritical = async (id: string) => {
+    setDismissedBannerIds(prev => new Set(prev).add(id));
+    await markCriticalDropout(id);
+  };
 
   const renderItem = ({ item }: { item: EmergencyMessage }) => {
     return (
@@ -90,8 +135,8 @@ export const HistoryScreen = () => {
         <View style={{ paddingHorizontal: 16 }}>
           <RetryFailureBanner 
             isVisible={true} 
-            onResend={() => resendMessage(failedRetryMessage.id)} 
-            onMarkCritical={() => console.log(`Marked ${failedRetryMessage.id} as critical dropout`)} 
+            onResend={() => handleResend(failedRetryMessage.id)} 
+            onMarkCritical={() => handleMarkCritical(failedRetryMessage.id)} 
           />
         </View>
       )}
@@ -116,15 +161,51 @@ export const HistoryScreen = () => {
         keyExtractor={item => item.id}
         renderItem={renderItem}
         contentContainerStyle={styles.listContainer}
+        refreshControl={
+          <RefreshControl 
+            refreshing={isRefreshing} 
+            onRefresh={onRefresh} 
+            tintColor="#3B82F6"
+            colors={['#3B82F6']}
+          />
+        }
         ListEmptyComponent={<Text style={styles.emptyText}>No tracking history found.</Text>}
       />
 
-      <TouchableOpacity 
-        style={styles.fab} 
-        onPress={() => navigation.navigate('Dispatch')}
-      >
-        <Text style={styles.fabIcon}>+</Text>
-      </TouchableOpacity>
+      {/* Floating Action Button Stack (Clear, Sync, Add) */}
+      <View style={styles.fabStack} pointerEvents="box-none">
+        {/* 1. Clear Memory FAB */}
+        <TouchableOpacity 
+          style={[styles.miniFab, styles.clearFab]} 
+          onPress={handleClearMemory}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.miniFabIcon}>🗑️</Text>
+        </TouchableOpacity>
+
+        {/* 2. Sync Relay FAB */}
+        <TouchableOpacity 
+          style={[styles.miniFab, styles.syncFab]} 
+          onPress={onRefresh}
+          disabled={isRefreshing}
+          activeOpacity={0.8}
+        >
+          {isRefreshing ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={styles.miniFabIcon}>🔄</Text>
+          )}
+        </TouchableOpacity>
+
+        {/* 3. Main New Dispatch FAB */}
+        <TouchableOpacity 
+          style={styles.fab} 
+          onPress={() => navigation.navigate('Dispatch')}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.fabIcon}>+</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 };
@@ -136,13 +217,19 @@ const styles = StyleSheet.create({
   storageBarFill: { height: '100%', backgroundColor: '#10B981' },
   storageText: { color: '#94A3B8', fontSize: 11, fontWeight: '700', textAlign: 'right', textTransform: 'uppercase' },
   
-  filterRow: { flexDirection: 'row', padding: 16, gap: 8 },
+  filterRow: { 
+    flexDirection: 'row', 
+    paddingHorizontal: 16, 
+    paddingTop: 12, 
+    paddingBottom: 8,
+    gap: 8 
+  },
   filterPill: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 20, backgroundColor: '#1E293B', borderWidth: 1, borderColor: '#334155' },
   filterPillActive: { backgroundColor: '#3B82F6', borderColor: '#3B82F6' },
   filterText: { color: '#94A3B8', fontSize: 12, fontWeight: '700' },
   filterTextActive: { color: '#FFFFFF' },
 
-  listContainer: { padding: 16, paddingBottom: 100 },
+  listContainer: { padding: 16, paddingBottom: 160 },
   messageCard: {
     backgroundColor: '#1E293B',
     padding: 16,
@@ -159,14 +246,44 @@ const styles = StyleSheet.create({
   urgentTag: { color: '#EF4444', fontSize: 11, fontWeight: '800' },
   emptyText: { textAlign: 'center', marginTop: 40, color: '#64748B', fontSize: 14 },
   
-  fab: {
+  fabStack: {
     position: 'absolute',
-    bottom: 30,
-    right: 24,
+    bottom: 24,
+    right: 20,
+    alignItems: 'center',
+    gap: 12,
+  },
+  miniFab: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 6,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+  },
+  clearFab: {
+    backgroundColor: '#7F1D1D',
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    shadowColor: '#EF4444',
+  },
+  syncFab: {
+    backgroundColor: '#1E40AF',
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+    shadowColor: '#3B82F6',
+  },
+  miniFabIcon: {
+    fontSize: 18,
+  },
+  fab: {
     backgroundColor: '#3B82F6',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 8,
@@ -175,5 +292,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 10,
   },
-  fabIcon: { fontSize: 28, color: '#FFFFFF', fontWeight: '400', marginTop: -2 },
+  fabIcon: {
+    color: '#FFFFFF',
+    fontSize: 30,
+    fontWeight: '300',
+    marginTop: -2,
+  },
 });

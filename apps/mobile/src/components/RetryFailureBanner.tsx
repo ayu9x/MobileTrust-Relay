@@ -13,8 +13,13 @@ export const RetryFailureBanner: React.FC<Props> = ({ isVisible, onResend, onMar
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.icon}>⚠</Text>
-        <Text style={styles.title}>CRITICAL FAILURE</Text>
+        <View style={styles.headerTitleRow}>
+          <Text style={styles.icon}>⚠</Text>
+          <Text style={styles.title}>CRITICAL FAILURE</Text>
+        </View>
+        <TouchableOpacity style={styles.dismissBtn} onPress={onMarkCritical} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Text style={styles.dismissBtnText}>✕</Text>
+        </TouchableOpacity>
       </View>
       
       <Text style={styles.message}>
@@ -22,11 +27,11 @@ export const RetryFailureBanner: React.FC<Props> = ({ isVisible, onResend, onMar
       </Text>
       
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.btnResend} onPress={onResend}>
+        <TouchableOpacity style={styles.btnResend} onPress={onResend} activeOpacity={0.7}>
           <Text style={styles.btnResendText}>Resend via Alternate</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.btnCritical} onPress={onMarkCritical}>
+        <TouchableOpacity style={styles.btnCritical} onPress={onMarkCritical} activeOpacity={0.7}>
           <Text style={styles.btnCriticalText}>Mark Critical Dropout</Text>
         </TouchableOpacity>
       </View>
@@ -51,7 +56,20 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 8,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dismissBtn: {
+    padding: 4,
+  },
+  dismissBtnText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#991B1B',
   },
   icon: {
     fontSize: 18,

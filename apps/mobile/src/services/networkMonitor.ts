@@ -48,23 +48,41 @@ export class NetworkMonitor {
   }
 
   /**
+   * Probes active internet connectivity to detect real offline / Airplane Mode.
+   */
+  async checkConnectivity(): Promise<boolean> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 1200);
+    try {
+      const res = await fetch('https://clients3.google.com/generate_204', {
+        method: 'HEAD',
+        signal: controller.signal,
+      });
+      const isConnected = res.status >= 200 && res.status < 400;
+      this.setOnline(isConnected);
+      return isConnected;
+    } catch {
+      this.setOnline(false);
+      return false;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /**
    * Starts periodic polling or native event listening.
    */
-  start(checkIntervalMs: number = NETWORK_STATUS_CHECK_INTERVAL): void {
+  start(checkIntervalMs: number = 2000): void {
     if (this.isRunning) return;
     this.isRunning = true;
 
-    // Check if browser/RN navigator.onLine exists
-    if (typeof navigator !== 'undefined' && 'onLine' in navigator) {
-      this.setOnline(Boolean(navigator.onLine));
-    }
+    // Immediate check
+    this.checkConnectivity().catch(() => {});
 
-    // Interval heartbeat
+    // Periodic heartbeat probe
     if (checkIntervalMs > 0) {
       this.intervalId = setInterval(() => {
-        if (typeof navigator !== 'undefined' && 'onLine' in navigator) {
-          this.setOnline(Boolean(navigator.onLine));
-        }
+        this.checkConnectivity().catch(() => {});
       }, checkIntervalMs);
     }
   }

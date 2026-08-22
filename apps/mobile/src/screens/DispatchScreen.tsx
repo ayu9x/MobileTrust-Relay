@@ -48,6 +48,7 @@ export const DispatchScreen = () => {
       id: trackingId,
       recipient: recipient.trim(),
       payload: content.trim(),
+      content: content.trim(),
       status: isOffline ? 'QUEUED_OFFLINE' : 'SENT',
       priority,
       isEncrypted: false,
@@ -55,6 +56,7 @@ export const DispatchScreen = () => {
       maxRetries: 3,
       createdAt: nowIso,
       updatedAt: nowIso,
+      timestampCreated: Date.now(),
     };
 
     try {

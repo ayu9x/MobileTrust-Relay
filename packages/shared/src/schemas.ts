@@ -41,8 +41,11 @@ export const TrackingIdSchema = z
 export const DeliveryStatusSchema = z.enum([
   'QUEUED_OFFLINE',
   'SENT',
+  'SENT_RADIO',
+  'RELAYED_CLOUD',
   'DELIVERED',
   'FAILED',
+  'FAILED_CARRIER',
 ]);
 
 /**
@@ -60,7 +63,9 @@ export const CarrierStatusSchema = z.enum([
   'DELIVRD',
   'UNDELIV',
   'EXPIRED',
+  'REJECTD',
   'ACCEPTD',
+  'BUFFERED',
 ]);
 
 /**
@@ -80,17 +85,31 @@ export const EncryptedPayloadSchema = z.object({
 export const EmergencyMessageSchema = z.object({
   id: TrackingIdSchema,
   recipient: IndianPhoneSchema,
-  payload: z.string().min(1, 'Message payload cannot be empty'),
-  isEncrypted: z.boolean(),
+  senderId: z.string().optional(),
+  payload: z.string().optional(),
+  content: z.string().optional(),
+  isEncrypted: z.boolean().optional(),
   priority: MessagePrioritySchema,
   status: DeliveryStatusSchema,
   retryCount: z.number().int().min(0).max(3),
-  maxRetries: z.number().int().min(1),
-  createdAt: IsoTimestampSchema,
-  updatedAt: IsoTimestampSchema,
+  maxRetries: z.number().int().min(1).optional(),
+  createdAt: IsoTimestampSchema.optional(),
+  updatedAt: IsoTimestampSchema.optional(),
   deliveredAt: IsoTimestampSchema.optional(),
   failureReason: z.string().optional(),
   mergedWithId: TrackingIdSchema.optional(),
+  contentHash: z.string().optional(),
+  timestampCreated: z.number().optional(),
+  timestampSent: z.number().optional(),
+  timestampDelivered: z.number().optional(),
+  isAcknowledged: z.boolean().optional(),
+  isCriticalDropout: z.boolean().optional(),
+}).refine((data) => {
+  const hasPayload = Boolean(data.payload && data.payload.trim().length > 0);
+  const hasContent = Boolean(data.content && data.content.trim().length > 0);
+  return hasPayload || hasContent;
+}, {
+  message: 'Message payload or content must not be empty',
 });
 
 /**

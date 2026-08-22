@@ -46,6 +46,8 @@ export interface EmergencyMessage {
   timestampCreated?: number;
   timestampSent?: number;
   timestampDelivered?: number;
+  isAcknowledged?: boolean;        // Dismissed from critical alert banner
+  isCriticalDropout?: boolean;     // Marked as critical dropout
 }
 
 export interface CarrierReceiptPayload {

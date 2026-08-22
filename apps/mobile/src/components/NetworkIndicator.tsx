@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 
 interface Props {
   isOffline: boolean;
@@ -10,11 +10,10 @@ export const NetworkIndicator: React.FC<Props> = ({ isOffline }) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.glassBg} />
       <Text style={styles.icon}>📡</Text>
-      <View>
-        <Text style={styles.title}>Offline Mode</Text>
-        <Text style={styles.subtitle}>Relay queued for up to 2 hours.</Text>
+      <View style={styles.textCol}>
+        <Text style={styles.title}>OFFLINE DISASTER MODE</Text>
+        <Text style={styles.subtitle}>Alerts queued locally in 15MB budget (Valid for 2 hrs)</Text>
       </View>
     </View>
   );
@@ -22,33 +21,32 @@ export const NetworkIndicator: React.FC<Props> = ({ isOffline }) => {
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    padding: 16,
-    paddingTop: 50,
+    backgroundColor: '#B91C1C',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 100,
-    elevation: 10,
-  },
-  glassBg: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EF4444',
   },
   icon: {
-    fontSize: 20,
-    marginRight: 12,
+    fontSize: 18,
+    marginRight: 10,
+  },
+  textCol: {
+    alignItems: 'center',
   },
   title: {
     color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: 14,
+    fontWeight: '900',
+    fontSize: 12,
+    letterSpacing: 0.5,
   },
   subtitle: {
-    color: '#D1D5DB',
-    fontSize: 12,
+    color: '#FECACA',
+    fontSize: 11,
+    fontWeight: '500',
   },
 });
+
