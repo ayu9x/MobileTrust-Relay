@@ -1,5 +1,5 @@
-import React, { useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableWithoutFeedback, Animated } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { MessagePriority } from '@mobiletrust/shared';
 
 interface Props {
@@ -8,96 +8,88 @@ interface Props {
 }
 
 export const PrioritySelector: React.FC<Props> = ({ priority, onChange }) => {
-  const slideAnim = useRef(new Animated.Value(priority === 'HIGH_URGENT' ? 1 : 0)).current;
-
-  useEffect(() => {
-    Animated.spring(slideAnim, {
-      toValue: priority === 'HIGH_URGENT' ? 1 : 0,
-      useNativeDriver: false, // width/colors usually can't use native driver without specific setups, but we are just translating X. Let's use false for simple layout manipulation or true if we just translate.
-      friction: 6,
-      tension: 40,
-    }).start();
-  }, [priority, slideAnim]);
-
-  const toggle = () => {
-    onChange(priority === 'STANDARD' ? 'HIGH_URGENT' : 'STANDARD');
-  };
-
-  const activeColor = slideAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['#F59E0B', '#EF4444'] // Amber to Red
-  });
-
-  const translateX = slideAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [4, 156] // Approximate width jumps
-  });
-
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Message Priority</Text>
-      <TouchableWithoutFeedback onPress={toggle}>
-        <View style={styles.switchContainer}>
-          <Animated.View style={[styles.activeBg, { backgroundColor: activeColor, transform: [{ translateX }] }]} />
-          
-          <View style={styles.option}>
-            <Text style={[styles.text, priority === 'STANDARD' && styles.activeText]}>
-              🟡 STANDARD
-            </Text>
-          </View>
-          <View style={styles.option}>
-            <Text style={[styles.text, priority === 'HIGH_URGENT' && styles.activeText]}>
-              🔴 HIGH URGENT
-            </Text>
-          </View>
-        </View>
-      </TouchableWithoutFeedback>
+      <Text style={styles.label}>PRIORITY</Text>
+      <View style={styles.row}>
+        <TouchableOpacity 
+          activeOpacity={0.7}
+          style={[styles.optionBtn, priority === 'STANDARD' && styles.activeStandard]}
+          onPress={() => onChange('STANDARD')}
+        >
+          <Text style={[styles.optionText, priority === 'STANDARD' && styles.activeStandardText]}>
+            Standard
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          activeOpacity={0.7}
+          style={[styles.optionBtn, priority === 'HIGH_URGENT' && styles.activeUrgent]}
+          onPress={() => onChange('HIGH_URGENT')}
+        >
+          <View style={[styles.dot, priority === 'HIGH_URGENT' ? { backgroundColor: '#EF4444' } : { backgroundColor: '#3F3F46' }]} />
+          <Text style={[styles.optionText, priority === 'HIGH_URGENT' && styles.activeUrgentText]}>
+            High Urgent
+          </Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 16,
+    marginVertical: 24,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 8,
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#71717A',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 12,
   },
-  switchContainer: {
+  row: {
     flexDirection: 'row',
-    height: 44,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 22,
-    position: 'relative',
-    overflow: 'hidden',
+    gap: 12,
   },
-  activeBg: {
-    position: 'absolute',
-    width: '45%',
-    height: 36,
-    top: 4,
-    borderRadius: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  option: {
+  optionBtn: {
     flex: 1,
+    flexDirection: 'row',
+    height: 48,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#27272A',
+    backgroundColor: '#09090B',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1,
   },
-  text: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#9CA3AF',
+  activeStandard: {
+    borderColor: '#FFFFFF',
+    backgroundColor: '#FFFFFF',
   },
-  activeText: {
-    color: '#FFFFFF',
+  activeUrgent: {
+    borderColor: '#EF4444',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
   },
+  optionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#71717A',
+    letterSpacing: 0.5,
+  },
+  activeStandardText: {
+    color: '#000000',
+    fontWeight: '600',
+  },
+  activeUrgentText: {
+    color: '#EF4444',
+    fontWeight: '600',
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 8,
+  }
 });
