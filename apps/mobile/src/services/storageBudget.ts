@@ -37,9 +37,9 @@ export function getStorageStats(messages: EmergencyMessage[]): StorageStats {
   let oldestMessageTimestamp: string | undefined = undefined;
   if (messages.length > 0) {
     const sorted = [...messages].sort(
-      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      (a, b) => new Date(a.createdAt || a.timestampCreated || 0).getTime() - new Date(b.createdAt || b.timestampCreated || 0).getTime()
     );
-    oldestMessageTimestamp = sorted[0]?.createdAt;
+    oldestMessageTimestamp = sorted[0]?.createdAt || (sorted[0]?.timestampCreated ? new Date(sorted[0].timestampCreated!).toISOString() : undefined);
   }
 
   return {
@@ -103,8 +103,8 @@ export function pruneOldMessages(
 
   // Sort delivered messages ascending by deliveredAt (or createdAt) -> Oldest first
   prunableDeliveredMessages.sort((a, b) => {
-    const timeA = new Date(a.deliveredAt || a.createdAt).getTime();
-    const timeB = new Date(b.deliveredAt || b.createdAt).getTime();
+    const timeA = new Date(a.deliveredAt || a.createdAt || a.timestampDelivered || a.timestampCreated || 0).getTime();
+    const timeB = new Date(b.deliveredAt || b.createdAt || b.timestampDelivered || b.timestampCreated || 0).getTime();
     return timeA - timeB;
   });
 

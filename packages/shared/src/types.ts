@@ -6,9 +6,11 @@
 export type DeliveryStatus =
   | 'QUEUED_OFFLINE'
   | 'SENT'
+  | 'SENT_RADIO'
   | 'RELAYED_CLOUD'
   | 'DELIVERED'
-  | 'FAILED';
+  | 'FAILED'
+  | 'FAILED_CARRIER';
 
 export type MessagePriority =
   | 'HIGH_URGENT'
@@ -28,18 +30,22 @@ export interface EmergencyMessage {
   id: string;                      // Tracking ID format: MTR-XXXXXX-XXXX
   recipient: string;               // Indian E.164 phone: +91XXXXXXXXXX
   senderId?: string;               // Responder ID / Device Hash
-  payload: string;                 // Plaintext or serialized EncryptedPayload
-  isEncrypted: boolean;
+  payload?: string;                // Plaintext or serialized EncryptedPayload
+  content?: string;                // Alias for payload in UI context
+  isEncrypted?: boolean;
   priority: MessagePriority;
   status: DeliveryStatus;
   retryCount: number;
-  maxRetries: number;              // Fixed to 3 per PRD
-  createdAt: string;               // ISO-8601
-  updatedAt: string;               // ISO-8601
+  maxRetries?: number;             // Fixed to 3 per PRD
+  createdAt?: string;              // ISO-8601
+  updatedAt?: string;              // ISO-8601
   deliveredAt?: string;            // ISO-8601
   failureReason?: string;
   mergedWithId?: string;           // Populated if deduplicated with another alert
   contentHash?: string;            // SHA-256 for deduplication
+  timestampCreated?: number;
+  timestampSent?: number;
+  timestampDelivered?: number;
 }
 
 export interface CarrierReceiptPayload {

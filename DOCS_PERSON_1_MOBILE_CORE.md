@@ -147,9 +147,9 @@ const styles = StyleSheet.create({
 
 ## 5. Commit & Verification Checklist
 
-- [ ] `DispatchScreen` renders cleanly with keyboard avoiding behavior.
-- [ ] Priority tags (High / Low) toggle visual accent colors.
-- [ ] Delivery status badge updates within UI dynamically when store updates.
-- [ ] 3-retry failure trigger displays high-visibility alert banner.
-- [ ] Storage size indicator shows usage under 15MB.
-- [ ] Zero lint errors, zero direct writes outside `apps/mobile/src/screens/`, `components/`, `native/`.
+- [x] `DispatchScreen` renders cleanly with keyboard avoiding behavior.
+- [x] Priority tags (High / Low) toggle visual accent colors.
+- [x] Delivery status badge updates within UI dynamically when store updates.
+- [x] 3-retry failure trigger displays high-visibility alert banner.
+- [x] Storage size indicator shows usage under 15MB.
+- [x] Zero lint errors, zero direct writes outside `apps/mobile/src/screens/`, `components/`, `native/`.
