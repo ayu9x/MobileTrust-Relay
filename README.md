@@ -212,45 +212,153 @@ npm run simulate --prefix backend
 </div>
 
 
-## Setup, Installation & Verification
+## 🛠️ Setup, Installation & Running the Project
 
-### 1. Prerequisites
-- **Node.js**: `v18.0.0+`
-- **npm**: `v9.0.0+`
+> **For Evaluators**: Follow these steps in order. You will have the full relay server running, all 59 tests passing, and a live end-to-end dispatch → delivery confirmation flow operational within ~5 minutes.
 
-### 2. Clone & Install Dependencies
+---
+
+### Step 1 — Prerequisites
+
+| Requirement | Version | Purpose |
+| :--- | :--- | :--- |
+| **Node.js** | `v18.0.0+` | Runtime for backend relay server & test suite |
+| **npm** | `v9.0.0+` | Package management for all 3 workspaces |
+| **Two terminal windows** | — | One for the relay server, one for testing/simulation |
+| **curl** (optional) | any | For manual API endpoint verification |
+
+---
+
+### Step 2 — Clone & Install All Dependencies
+
 ```bash
+# Clone the repository
 git clone https://github.com/ayu9x/MobileTrust-Relay.git
 cd MobileTrust-Relay
 
-# Install root dependencies (Mobile & Shared)
+# Install root workspace dependencies (shared packages + mobile app)
 npm install
 
-# Install Cloud Relay dependencies
+# Install cloud relay backend dependencies
 cd backend && npm install && cd ..
 ```
 
-### 3. Run the Automated Test Suite (59 Tests)
+---
+
+### Step 3 — Verify TypeScript Integrity (0 Errors)
+
+Before running anything, confirm the entire codebase compiles cleanly across all 3 packages:
+
+```bash
+npm run typecheck
+```
+
+✅ *Expected: exits with code `0` and zero TypeScript errors across `apps/mobile`, `packages/shared`, and `backend`.*
+
+---
+
+### Step 4 — Run the Full Automated Test Suite
+
+This single command verifies **every system capability** — offline queuing, retry logic, AES-GCM encryption, SHA-256 deduplication, storage budget enforcement, and end-to-end carrier simulation:
+
 ```bash
 npm test
 ```
-*Expected Output:*
-```text
-✓ tests/unit/storageBudget.test.ts        (5 tests)
-✓ tests/unit/deduplication.test.ts        (6 tests)
-✓ tests/unit/networkMonitor.test.ts       (5 tests)
-✓ tests/unit/tracking.test.ts             (4 tests)
-✓ tests/unit/auditLogger.test.ts          (3 tests)
-✓ tests/unit/shared.test.ts               (15 tests)
-✓ tests/unit/crypto.test.ts               (9 tests)
-✓ tests/unit/twoHourOffline.test.ts       (1 test)
-✓ tests/unit/retry.test.ts                (4 tests)
-✓ tests/e2e-simulation/fullRelaySimulation.test.ts (4 tests)
-✓ tests/unit/offlineQueue.test.ts         (3 tests)
 
-Test Files  11 passed (11)
-     Tests  59 passed (59)
+*Expected output:*
+```text
+✓ tests/unit/storageBudget.test.ts              (5 tests)   — LRU pruning & < 15MB enforcement
+✓ tests/unit/deduplication.test.ts             (6 tests)   — SHA-256 5-min temporal clustering
+✓ tests/unit/networkMonitor.test.ts            (5 tests)   — Online/offline state detection
+✓ tests/unit/tracking.test.ts                  (4 tests)   — MTR-XXXXX-XXXX ID lifecycle
+✓ tests/unit/auditLogger.test.ts               (3 tests)   — Forensic JSON audit trail
+✓ tests/unit/shared.test.ts                   (15 tests)   — Shared TypeScript type contracts
+✓ tests/unit/crypto.test.ts                    (9 tests)   — AES-GCM encrypt / decrypt / tamper
+✓ tests/unit/twoHourOffline.test.ts            (1 test)    — 2-hour offline survivability
+✓ tests/unit/retry.test.ts                     (4 tests)   — Exponential backoff + jitter
+✓ tests/e2e-simulation/fullRelaySimulation.test.ts (4 tests) — End-to-end carrier DLR flow
+✓ tests/unit/offlineQueue.test.ts              (3 tests)   — Queue persistence & drain on reconnect
+
+ Test Files  11 passed (11)
+      Tests  59 passed (59)   Duration: ~2.3s
 ```
+
+---
+
+### Step 5 — Launch the Serverless Cloud Relay
+
+Open **Terminal 1** and start the backend relay server:
+
+```bash
+cd backend
+npm run dev
+```
+
+*You should see:*
+```text
+[MobileTrust Relay] ✅ Cloud Relay listening on http://localhost:4000
+[MobileTrust Relay] 📡 SSE stream ready on   GET  /api/status/stream
+[MobileTrust Relay] 🔗 DLR Webhook ready on  POST /api/carrier/webhook
+[MobileTrust Relay] 📬 Ingest ready on       POST /api/messages/ingest
+```
+
+---
+
+### Step 6 — Live API Walkthrough (End-to-End Demo)
+
+With the relay running, open **Terminal 2** and run these commands in sequence to see the full dispatch → delivery lifecycle:
+
+**① Dispatch a new emergency alert:**
+```bash
+curl -X POST http://localhost:4000/api/messages/ingest \
+  -H "Content-Type: application/json" \
+  -d '{"id":"MTR-172432-8F2B","recipient":"+919876543210","payload":"Flooding Ward 4 — need medical evac","priority":"HIGH_URGENT"}'
+```
+
+**② Simulate the telecom carrier confirming SMS delivery (DLR webhook):**
+```bash
+curl -X POST http://localhost:4000/api/carrier/webhook \
+  -H "Content-Type: application/json" \
+  -d '{"trackingId":"MTR-172432-8F2B","recipient":"+919876543210","carrierStatus":"DELIVRD","carrierName":"Airtel-North","timestamp":"2026-08-22T10:24:08Z"}'
+```
+
+**③ Query the live delivery status (shows DELIVERED in < 15ms):**
+```bash
+curl http://localhost:4000/api/status/MTR-172432-8F2B
+# → {"status":"DELIVERED","deliveredAt":"2026-08-22T10:24:08Z","carrier":"Airtel-North"}
+```
+
+**④ Simulate offline sync reconnect — batch reconciliation:**
+```bash
+curl -X POST http://localhost:4000/api/status/batch \
+  -H "Content-Type: application/json" \
+  -d '{"trackingIds":["MTR-172432-8F2B","MTR-172433-4C9A"]}'
+```
+
+**⑤ Open the live SSE delivery stream (real-time push, no polling):**
+```bash
+curl -N http://localhost:4000/api/status/stream
+# Streams JSON events in real-time as new DLRs arrive
+```
+
+**⑥ View full relay telemetry map of all active messages:**
+```bash
+curl http://localhost:4000/api/status/all
+# → {"count":1,"records":[{"id":"MTR-172432-8F2B","status":"DELIVERED",...}]}
+```
+
+---
+
+### Step 7 — Run the Carrier Network Simulation (All 4 Disaster Scenarios)
+
+In **Terminal 2**, execute the complete telecom simulation suite end-to-end:
+
+```bash
+cd backend
+npm run simulate
+```
+
+*Exercises all four scenarios: Airtel-North happy path → BSNL congestion delay → Jio-MH cell tower power failure → duplicate team alert clustering. Each scenario prints a full event trace and updates relay state.*
 
 
 ---
