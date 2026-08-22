@@ -39,11 +39,14 @@ export const DeliveryStatusBadge: React.FC<Props> = ({ status, retryCount = 0 })
         return { text: 'Delivered', color: '#10B981', bg: 'rgba(16, 185, 129, 0.1)' };
       case 'SENT_RADIO':
         return { text: 'Sent via Carrier', color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.1)' };
+      case 'SENT':
+        return { text: 'Sent to Server', color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.1)' };
       case 'RELAYED_CLOUD':
         return { text: 'Relayed to Cloud', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.1)' };
       case 'QUEUED_OFFLINE':
         return { text: 'Queued Offline', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.1)' };
       case 'FAILED_CARRIER':
+      case 'FAILED':
         return { 
           text: `Failed (${retryCount}/3)`, 
           color: '#EF4444', 

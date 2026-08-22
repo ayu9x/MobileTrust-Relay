@@ -38,7 +38,7 @@ export const HistoryScreen = () => {
 
   const filteredMessages = useMemo(() => {
     if (filter === 'DELIVERED') return messages.filter(m => m.status === 'DELIVERED');
-    if (filter === 'FAILED') return messages.filter(m => m.status === 'FAILED_CARRIER');
+    if (filter === 'FAILED') return messages.filter(m => m.status === 'FAILED_CARRIER' || m.status === 'FAILED');
     return messages;
   }, [messages, filter]);
 
