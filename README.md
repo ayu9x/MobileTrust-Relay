@@ -109,16 +109,17 @@ $$\text{Fingerprint} = \text{SHA-256}(\text{Recipient}_{\text{E164}} \,\|\, \tex
 
 > **For Evaluators**: Follow these steps in order. You will have the relay server running, all 61 tests passing, and a live dispatch → delivery flow operational within ~5 minutes.
 
----
+<div align="center">
 
-### Prerequisites
-
-| Requirement | Version | Purpose |
+| Prerequisites | Requirement | Version |
 | :--- | :--- | :--- |
 | **Node.js** | `v18.0.0+` | Runtime for backend relay server & test suite |
 | **npm** | `v9.0.0+` | Package management |
 | **Android device or emulator** | — | For running the React Native app |
 | **Android SDK / ADB** | any | For reverse port forwarding to device |
+
+</div>
+
 
 ---
 
