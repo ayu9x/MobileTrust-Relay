@@ -34,6 +34,21 @@ MobileTrust Relay solves these challenges with a local-first, serverless-backed 
 
 ---
 
+## How MobileTrust Relay works
+
+The system follows a simple workflow:
+
+<div align="center">
+  <img src="docs/mobiletrust_relay_flow.png" alt="Aetheris Engine Architecture Diagram">
+  <p style="margin-top: 8px;"><b>Figure 1. MobileTrust Relay Relay Flow</b></p>
+</div>
+
+The app does not depend on a continuous internet connection.
+
+If the device is offline, the message is stored locally. When connectivity returns, the sync engine sends the pending information to the relay and checks for updated delivery status.
+
+---
+
 ## Key Features
 
 | Feature | Description |
@@ -51,11 +66,11 @@ MobileTrust Relay solves these challenges with a local-first, serverless-backed 
 
 ## System Architecture
 
-### End-to-End Delivery Lifecycle
+### Message Lifecycle
 
 <div align="center">
-  <img src="docs/emergency_alert_delivery_sequence.png" alt="Aetheris Engine Architecture Diagram">
-  <p style="margin-top: 8px;"><b>Figure 1. End-to-End Emergency Alert Delivery Lifecycle: Offline-First SMS Dispatch to Confirmed Delivery</b></p>
+  <img src="docs/alert_lifecycle_flow.png" alt="Aetheris Engine Architecture Diagram">
+  <p style="margin-top: 8px;"><b>Figure 2. End-to-End Emergency Alert Delivery Lifecycle: Offline-First SMS Dispatch to Confirmed Delivery</b></p>
 </div>
 
 
@@ -105,7 +120,7 @@ $$\text{Fingerprint} = \text{SHA-256}(\text{Recipient}_{\text{E164}} \,\|\, \tex
 
 ---
 
-## 🛠️ Setup & Running the Project
+## Setup & Running the Project
 
 > **For Evaluators**: Follow these steps in order. You will have the relay server running, all 61 tests passing, and a live dispatch → delivery flow operational within ~5 minutes.
 
@@ -214,34 +229,34 @@ npx react-native run-android
 
 ### Step 6 — Live API Walkthrough (Backend Demo)
 
-**① Dispatch a new emergency alert:**
+**6.1 Dispatch a new emergency alert:**
 ```bash
 curl -X POST http://localhost:4000/api/messages/ingest \
   -H "Content-Type: application/json" \
   -d '{"id":"MTR-583285-01ED","recipient":"+919876543210","payload":"Flooding Ward 4 — need medical evac","priority":"HIGH_URGENT"}'
 ```
 
-**② The backend auto-simulates carrier DLR at 2.5s** — or trigger manually:
+**6.2 The backend auto-simulates carrier DLR at 2.5s** — or trigger manually:
 ```bash
 curl -X POST http://localhost:4000/api/carrier/webhook \
   -H "Content-Type: application/json" \
   -d '{"trackingId":"MTR-583285-01ED","recipient":"+919876543210","carrierStatus":"DELIVRD","carrierName":"Jio-DisasterRelief","timestamp":"2026-08-22T17:30:00Z"}'
 ```
 
-**③ Query live delivery status:**
+**6.3 Query live delivery status:**
 ```bash
 curl http://localhost:4000/api/status/MTR-583285-01ED
 # → {"status":"DELIVERED","deliveredAt":"2026-08-22T17:30:00Z","carrier":"Jio-DisasterRelief"}
 ```
 
-**④ Batch reconciliation (simulates offline sync reconnect):**
+**6.4 Batch reconciliation (simulates offline sync reconnect):**
 ```bash
 curl -X POST http://localhost:4000/api/status/batch \
   -H "Content-Type: application/json" \
   -d '{"trackingIds":["MTR-583285-01ED"]}'
 ```
 
-**⑤ View full relay telemetry:**
+**6.5 View full relay telemetry:**
 ```bash
 curl http://localhost:4000/api/status/all
 # → {"count":1,"records":[{"id":"MTR-583285-01ED","status":"DELIVERED",...}]}
@@ -249,7 +264,7 @@ curl http://localhost:4000/api/status/all
 
 ---
 
-## 📱 Live Demo Scenarios (On-Device)
+## Live Demo Scenarios (On-Device)
 
 ### Demo 1 — Standard Delivery (Happy Path)
 1. Tap **`+`** FAB → enter any recipient and alert message
@@ -264,7 +279,7 @@ curl http://localhost:4000/api/status/all
 ### Demo 3 — Cell Tower Dropout & Critical Failure Triage
 1. Send a message containing the word `dropout` or `fail`
 2. Watch badge progress: `FAILED (1/3)` → `FAILED (2/3)` → `FAILED (3/3)`
-3. 🚩 **CRITICAL FAILURE BANNER** appears with **Resend** and **Mark Critical Dropout** options
+3. **CRITICAL FAILURE BANNER** appears with **Resend** and **Mark Critical Dropout** options
 4. Tap **"Mark Critical Dropout"** to acknowledge and dismiss
 
 ### Demo 4 — Duplicate Alert Prevention
@@ -273,6 +288,6 @@ curl http://localhost:4000/api/status/all
 
 ---
 
-## Conclusion & Engineering Summary
+## Conclusion
 
 **MobileTrust Relay** proves that mission-critical emergency verification does not require heavyweight persistent database servers or recipient internet connectivity. By combining native mobile SMS dispatch with stateless serverless cloud relays, carrier delivery receipt webhooks, and an active network probe engine, the system achieves sub-3-second delivery confirmations, 2-hour offline survivability, progressive retry dropout triage, and cryptographic payload protection in rural disaster environments.
